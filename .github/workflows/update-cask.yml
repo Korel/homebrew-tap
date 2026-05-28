@@ -1,0 +1,62 @@
+name: Update cask
+
+# Bumps Casks/alt-tab-fork.rb to the latest fork-v* release of
+# Korel/alt-tab-macos (version + sha256). Runs on a schedule and on demand.
+# The fork's build workflow can also trigger this via repository_dispatch
+# (event type: new-release).
+
+on:
+  schedule:
+    - cron: '30 6 * * *' # daily, shortly after the fork's sync/build
+  workflow_dispatch:
+  repository_dispatch:
+    types: [new-release]
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Korel/alt-tab-macos
+  CASK: Casks/alt-tab-fork.rb
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve latest fork release
+        id: rel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Latest release tagged fork-v*.
+          tag=$(gh release list --repo "$SOURCE_REPO" --json tagName \
+            --jq '[.[] | select(.tagName | startswith("fork-v"))][0].tagName')
+          if [[ -z "$tag" || "$tag" == "null" ]]; then
+            echo "No fork-v* release found."; exit 1
+          fi
+          version="${tag#fork-v}"
+          url="https://github.com/$SOURCE_REPO/releases/download/$tag/AltTab-$version-unsigned.dmg"
+          sha=$(curl -fsSL "$url" | shasum -a 256 | awk '{print $1}')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Latest: $version ($sha)"
+
+      - name: Rewrite cask
+        run: |
+          v='${{ steps.rel.outputs.version }}'
+          s='${{ steps.rel.outputs.sha }}'
+          sed -i -E "s/^  version \".*\"/  version \"$v\"/" "$CASK"
+          sed -i -E "s/^  sha256 \".*\"/  sha256 \"$s\"/" "$CASK"
+          git diff --stat
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet; then
+            echo "Cask already up to date."; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump alt-tab-fork to ${{ steps.rel.outputs.version }}"
+          git push
