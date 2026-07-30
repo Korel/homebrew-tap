@@ -1,0 +1,88 @@
+name: Update formula
+
+# Regenerates Formula/zmx-fork.rb from .github/zmx-fork.rb.tmpl against the
+# latest fork-v* release of Korel/zmx (version + all four sha256 sums).
+# Runs on a schedule and on demand. The fork's release workflow can also
+# trigger this via repository_dispatch (event type: new-zmx-release).
+#
+# The formula is regenerated from a template rather than sed-patched in place
+# because it carries four separate sha256 values, one per platform.
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # daily
+  workflow_dispatch:
+  repository_dispatch:
+    types: [new-zmx-release]
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: Korel/zmx
+  TEMPLATE: .github/zmx-fork.rb.tmpl
+  FORMULA: Formula/zmx-fork.rb
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve latest fork release
+        id: rel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag=$(gh release list --repo "$SOURCE_REPO" --json tagName \
+            --jq '[.[] | select(.tagName | startswith("fork-v"))][0].tagName')
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "No fork-v* release found."; exit 1
+          fi
+          echo "tag=$tag"                >> "$GITHUB_OUTPUT"
+          echo "version=${tag#fork-v}"   >> "$GITHUB_OUTPUT"
+          echo "Latest release: $tag"
+
+      - name: Render formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag='${{ steps.rel.outputs.tag }}'
+          ver='${{ steps.rel.outputs.version }}'
+
+          mkdir -p Formula
+          cp "$TEMPLATE" "$FORMULA"
+          sed -i "s|@VERSION@|$ver|g" "$FORMULA"
+
+          base="https://github.com/$SOURCE_REPO/releases/download/$tag"
+          for combo in macos-aarch64 macos-x86_64 linux-aarch64 linux-x86_64; do
+            file="zmx-$ver-$combo.tar.gz"
+            sha=$(curl -fsSL "$base/$file" | sha256sum | awk '{print $1}')
+            if [ -z "$sha" ]; then
+              echo "Failed to hash $file"; exit 1
+            fi
+            key=$(echo "$combo" | tr '[:lower:]-' '[:upper:]_')
+            sed -i "s|@SHA_$key@|$sha|g" "$FORMULA"
+            echo "$file -> $sha"
+          done
+
+          if grep -q '@[A-Z_]*@' "$FORMULA"; then
+            echo "FAIL: unsubstituted placeholders remain:"
+            grep -n '@[A-Z_]*@' "$FORMULA"
+            exit 1
+          fi
+          ruby -c "$FORMULA"
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$FORMULA"; then
+            echo "Formula already up to date."; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$FORMULA"
+          git commit -m "chore: bump zmx-fork to ${{ steps.rel.outputs.version }}"
+          git push
