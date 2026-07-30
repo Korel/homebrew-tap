@@ -78,11 +78,13 @@ jobs:
       - name: Commit if changed
         run: |
           set -euo pipefail
-          if git diff --quiet -- "$FORMULA"; then
-            echo "Formula already up to date."; exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage first: `git diff` reports no change for an untracked file,
+          # so a brand-new formula would otherwise be silently skipped.
           git add "$FORMULA"
+          if git diff --cached --quiet -- "$FORMULA"; then
+            echo "Formula already up to date."; exit 0
+          fi
           git commit -m "chore: bump zmx-fork to ${{ steps.rel.outputs.version }}"
           git push
