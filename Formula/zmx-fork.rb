@@ -1,7 +1,7 @@
 class ZmxFork < Formula
   desc "Session attach/detach for the terminal (ReleaseFast-VT fork)"
   homepage "https://github.com/Korel/zmx"
-  version "0.7.0"
+  version "0.7.1"
   license "MIT"
 
   # Fork of upstream zmx that compiles the embedded ghostty-vt .ReleaseFast
@@ -23,22 +23,22 @@ class ZmxFork < Formula
   on_macos do
     on_arm do
       url "https://github.com/Korel/zmx/releases/download/fork-v#{version}/zmx-#{version}-macos-aarch64.tar.gz"
-      sha256 "34a5df748d44a40b2aa4a173dcef1695e0a55730950d9c579577de455212c4f3"
+      sha256 "63fe8822358551835aa6f8c6d8d2843f3e06c38ea1597be954157b92e99ccb46"
     end
     on_intel do
       url "https://github.com/Korel/zmx/releases/download/fork-v#{version}/zmx-#{version}-macos-x86_64.tar.gz"
-      sha256 "bdf07eda1606e563daf584ea6f9d89d2e0e724b6480df685f9e2f108aa562033"
+      sha256 "153fd4a3075f04190fc32c144bf5f2a2482d4ca162c2484a79ba52d049826bb2"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/Korel/zmx/releases/download/fork-v#{version}/zmx-#{version}-linux-aarch64.tar.gz"
-      sha256 "03861e89b35b496c7100b91ad2f6689961be2924d9f9283f1c5e6d072d8ea187"
+      sha256 "964f8eefad721fca3990380ae909378f43941a711b4452d67969449f5e9377d1"
     end
     on_intel do
       url "https://github.com/Korel/zmx/releases/download/fork-v#{version}/zmx-#{version}-linux-x86_64.tar.gz"
-      sha256 "8d543aaf38f12081d9b5fd460ed9ef7cbafbca78d5618013ac927e2901b5c391"
+      sha256 "1dde8decca17b07ad02a73eba54fa07571408c4eea91bf8234f16f12c95c87e0"
     end
   end
 
