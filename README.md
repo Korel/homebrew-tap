@@ -31,3 +31,8 @@ brew install --cask Korel/tap/alt-tab-fork
 `Casks/alt-tab-fork.rb` pins a `version` + `sha256`. It is bumped
 automatically by the `update-cask` workflow whenever the fork publishes a new
 `fork-v*` release.
+
+## License
+
+The cask and workflow in this repo are [MIT](LICENSE). AltTab itself is
+GPL-3.0; see [its repository](https://github.com/Korel/alt-tab-macos).
